@@ -17,7 +17,7 @@ java {
     targetCompatibility = JavaVersion.VERSION_17
 }
 
-version = "2.1.0+fabric.${libs.versions.fabric.loader.get()}"
+version = "2.2.0+fabric.${libs.versions.fabric.loader.get()}"
 group = "com.floweytf.fabricpaperloader"
 
 dependencies {
@@ -73,7 +73,7 @@ tasks {
                     }
 
                     val attributeMap = depManifest.mainAttributes
-                        .mapKeys { (k, v) -> k.toString() }
+                        .mapKeys { (k, _) -> k.toString() }
                         .filterKeys { !excluded.contains(it) }
 
                     attributes(attributeMap, "org/objectweb/asm/")

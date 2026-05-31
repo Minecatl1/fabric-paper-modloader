@@ -49,6 +49,7 @@ public class PaperclipRunner {
             existingPaperLocations,
             new HashMap<>(),
             true,
+            "io.papermc.paperclip.Paperclip",
             "io.papermc.paperclip.Main"
         );
 
@@ -74,7 +75,7 @@ public class PaperclipRunner {
      * @return The exit code.
      * @throws Exception On internal reflection errors.
      */
-    private static int invokePaperclip(ClassLoader parent) throws Exception {
+    private static int invokePaperclip(String mainClassName, ClassLoader parent) throws Exception {
         try {
             final var cl = new ReroutingCL(parent, name -> name.startsWith("io.papermc"))
                 .rerouteS(System.class, "exit", PaperclipRunner.class, "handleExit", void.class, int.class)
@@ -84,7 +85,7 @@ public class PaperclipRunner {
 
             Log.info(LogCategory.GAME_PROVIDER, "Running paperclip...");
 
-            cl.loadClass("io.papermc.paperclip.Paperclip")
+            cl.loadClass(mainClassName)
                 .getMethod("main", String[].class)
                 .invoke(null, (Object) new String[]{});
         } catch (InvocationTargetException e) {
@@ -129,7 +130,7 @@ public class PaperclipRunner {
             Log.info(LogCategory.GAME_PROVIDER, "Launching paperclip to generate patched jars");
 
             try {
-                final var paperclipRes = invokePaperclip(classLoader);
+                final var paperclipRes = invokePaperclip(paperclipLocateResult.get().name, classLoader);
 
                 if (paperclipRes != 0) {
                     Log.error(LogCategory.GAME_PROVIDER, "Paperclip exited with a non-zero code");

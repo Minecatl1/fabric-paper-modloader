@@ -43,7 +43,7 @@ public class ReroutingCL extends ClassLoader {
             final var newSig = entries.get(new Entry(owner, name, descriptor, opcode == Opcodes.INVOKESTATIC));
 
             if (newSig != null) {
-                super.visitMethodInsn(Opcodes.INVOKESTATIC, newSig.owner, newSig.name, newSig.desc, isInterface);
+                super.visitMethodInsn(Opcodes.INVOKESTATIC, newSig.owner, newSig.name, newSig.desc, false);
             } else {
                 super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
             }
@@ -94,6 +94,11 @@ public class ReroutingCL extends ClassLoader {
 
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        final var loadedClass = findLoadedClass(name);
+        if (loadedClass != null) {
+            return loadedClass;
+        }
+
         if (!shouldTransform.test(name)) {
             return super.loadClass(name, resolve);
         }

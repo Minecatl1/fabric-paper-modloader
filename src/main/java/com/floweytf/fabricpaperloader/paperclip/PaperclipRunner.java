@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
@@ -24,6 +25,11 @@ import net.fabricmc.loader.impl.util.log.LogCategory;
  * A utility class for containing annoying procedural logic required for running paperclip.
  */
 public class PaperclipRunner {
+    private static final List<String> PAPERCLIP_ENTRYPOINTS = List.of(
+        "io.papermc.paperclip.Main",
+        "io.papermc.paperclip.Paperclip"
+    );
+
     /**
      * Finds paperclip with Fabric's tools.
      *
@@ -44,13 +50,20 @@ public class PaperclipRunner {
             .map(p -> Paths.get(p).toAbsolutePath().normalize())
             .filter(Files::exists).toList();
 
-        // Find the "correct" paper jar
-        final var result = GameProviderHelper.findFirst(
-            existingPaperLocations,
-            new HashMap<>(),
-            true,
-            "io.papermc.paperclip.Main"
-        );
+        // Find the "correct" paper jar. Paperclip has used both Main and Paperclip as its entrypoint.
+        GameProviderHelper.FindResult result = null;
+        for (final var entrypoint : PAPERCLIP_ENTRYPOINTS) {
+            result = GameProviderHelper.findFirst(
+                existingPaperLocations,
+                new HashMap<>(),
+                true,
+                entrypoint
+            );
+
+            if (result != null && result.path != null) {
+                break;
+            }
+        }
 
         if (result == null || result.path == null) {
             Log.error(
@@ -84,9 +97,20 @@ public class PaperclipRunner {
 
             Log.info(LogCategory.GAME_PROVIDER, "Running paperclip...");
 
-            cl.loadClass("io.papermc.paperclip.Paperclip")
-                .getMethod("main", String[].class)
-                .invoke(null, (Object) new String[]{});
+            ClassNotFoundException failure = null;
+
+            for (final var entrypoint : PAPERCLIP_ENTRYPOINTS) {
+                try {
+                    cl.loadClass(entrypoint)
+                        .getMethod("main", String[].class)
+                        .invoke(null, (Object) new String[]{});
+                    return 0;
+                } catch (ClassNotFoundException e) {
+                    failure = e;
+                }
+            }
+
+            throw new ClassNotFoundException("Could not find a supported Paperclip entrypoint", failure);
         } catch (InvocationTargetException e) {
             if (e.getCause() instanceof ExitException ex) {
                 Log.debug(LogCategory.GAME_PROVIDER, "Paperclip exited with return-code: %d", ex.exitCode);
@@ -95,8 +119,6 @@ public class PaperclipRunner {
 
             throw e;
         }
-
-        return 0;
     }
 
     /**
@@ -113,17 +135,35 @@ public class PaperclipRunner {
         // launch paperclip to transform stuff
         try (final var classLoader = Utils.classLoaderFor(paperclipLocateResult.get().path)) {
             // guess minecraft version
-            final var reader = new Scanner(
-                Objects.requireNonNull(classLoader.getResourceAsStream("META-INF/versions.list"))
-            );
+            final VersionInfo version;
+            try (final var reader = new Scanner(
+                Objects.requireNonNull(classLoader.getResourceAsStream("META-INF/versions.list"),
+                    "paperclip jar is missing META-INF/versions.list")
+            )) {
+                if (!reader.hasNext()) {
+                    Log.error(LogCategory.GAME_PROVIDER, "Paperclip versions.list does not contain a server hash");
+                    return Optional.empty();
+                }
+                final var hash = reader.next();
 
-            final var hash = reader.next();
-            final var version = new VersionInfo(
-                reader.next(),
-                hash,
-                getLibraryPaths(classLoader),
-                Path.of("versions").resolve(reader.next())
-            );
+                if (!reader.hasNext()) {
+                    Log.error(LogCategory.GAME_PROVIDER, "Paperclip versions.list does not contain a Minecraft version");
+                    return Optional.empty();
+                }
+                final var minecraftVersion = reader.next();
+
+                if (!reader.hasNext()) {
+                    Log.error(LogCategory.GAME_PROVIDER, "Paperclip versions.list does not contain a server jar path");
+                    return Optional.empty();
+                }
+
+                version = new VersionInfo(
+                    minecraftVersion,
+                    hash,
+                    getLibraryPaths(classLoader),
+                    Path.of("versions").resolve(reader.next())
+                );
+            }
 
             Log.info(LogCategory.GAME_PROVIDER, "Found paper %s", version);
             Log.info(LogCategory.GAME_PROVIDER, "Launching paperclip to generate patched jars");

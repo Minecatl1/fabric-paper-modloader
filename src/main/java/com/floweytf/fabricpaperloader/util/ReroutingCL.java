@@ -94,30 +94,42 @@ public class ReroutingCL extends ClassLoader {
 
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-        if (!shouldTransform.test(name)) {
-            return super.loadClass(name, resolve);
-        }
-
-        try (var input = super.getResourceAsStream(name.replaceAll("\\.", "/") + ".class")) {
-            if (input == null) {
-                throw new ClassNotFoundException("Failed to read class bytes from parent for " + name);
+        synchronized (getClassLoadingLock(name)) {
+            final var loaded = findLoadedClass(name);
+            if (loaded != null) {
+                if (resolve) {
+                    resolveClass(loaded);
+                }
+                return loaded;
             }
 
-            ClassReader reader = new ClassReader(input.readAllBytes());
-            ClassWriter writer = new ClassWriter(reader, 0);
-            reader.accept(new ReroutingClassVisitor(writer), 0);
-
-            final var bytes = writer.toByteArray();
-
-            final var clazz = defineClass(name, bytes, 0, bytes.length);
-
-            if (resolve) {
-                resolveClass(clazz);
+            if (!shouldTransform.test(name)) {
+                return super.loadClass(name, resolve);
             }
 
-            return clazz;
-        } catch (Throwable e) {
-            throw new ClassNotFoundException("Failed to load class: " + name, e);
+            try (var input = super.getResourceAsStream(name.replace('.', '/') + ".class")) {
+                if (input == null) {
+                    throw new ClassNotFoundException("Failed to read class bytes from parent for " + name);
+                }
+
+                ClassReader reader = new ClassReader(input.readAllBytes());
+                ClassWriter writer = new ClassWriter(reader, 0);
+                reader.accept(new ReroutingClassVisitor(writer), 0);
+
+                final var bytes = writer.toByteArray();
+
+                final var clazz = defineClass(name, bytes, 0, bytes.length);
+
+                if (resolve) {
+                    resolveClass(clazz);
+                }
+
+                return clazz;
+            } catch (ClassNotFoundException e) {
+                throw e;
+            } catch (Throwable e) {
+                throw new ClassNotFoundException("Failed to load class: " + name, e);
+            }
         }
     }
 }

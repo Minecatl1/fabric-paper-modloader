@@ -45,7 +45,11 @@ public class PaperGameProvider implements GameProvider {
         return Paths.get(arguments.getOrDefault(PROPERTY_PAPER_DIRECTORY, "."));
     }
 
-    private void withFiles(Path[] path, Consumer<Path> consumer) throws IOException {
+    private void withFiles(Path[] path, Consumer<Path> consumer) {
+        if (path == null) {
+            return;
+        }
+
         Arrays.stream(path).filter(Files::isRegularFile).forEach(consumer);
     }
 
@@ -179,12 +183,8 @@ public class PaperGameProvider implements GameProvider {
             this.versionInfo = paperclipResult.get();
 
             // Scan runtime stuff
-            try {
-                withFiles(versionInfo.requiredLibraries(), classifier::addPaths);
-                classifier.addPaths(versionInfo.serverJarPath());
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+            withFiles(versionInfo.requiredLibraries(), classifier::addPaths);
+            classifier.addPaths(versionInfo.serverJarPath());
 
             classifier.done();
         }

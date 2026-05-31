@@ -121,9 +121,15 @@ public class PaperGameProvider implements GameProvider {
         return getLaunchDirectory(arguments);
     }
 
+    /**
+     * Paper's runtime jar uses Mojang's obfuscated names, just like a normal
+     * Minecraft server jar.
+     *
+     * @return {@code true}
+     */
     @Override
-    public Set<BuiltinTransform> getBuiltinTransforms(String className) {
-        return Set.of(BuiltinTransform.CLASS_TWEAKS);
+    public boolean isObfuscated() {
+        return true;
     }
 
     /**

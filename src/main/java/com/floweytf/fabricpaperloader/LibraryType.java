@@ -15,7 +15,7 @@ import org.spongepowered.asm.launch.MixinBootstrap;
 public enum LibraryType {
     SELF(LibraryCategory.LAUNCHER, UrlUtil.getCodeSource(LibraryType.class)),
     PAPER_MC(LibraryCategory.GAME, "org/bukkit/craftbukkit/Main.class"),
-    FABsRIC_LOADER(LibraryCategory.SYSTEM, FabricLoader.class),
+    FABRIC_LOADER(LibraryCategory.SYSTEM, FabricLoader.class),
     OW2_ASM(LibraryCategory.SYSTEM, ClassReader.class, Analyzer.class, Remapper.class, ClassNode.class, ASMifier.class),
     MIXIN(LibraryCategory.SYSTEM, MixinBootstrap.class);
 
@@ -42,7 +42,7 @@ public enum LibraryType {
         this.category = category;
         this.path = null;
         this.classes = Arrays.stream(classes)
-            .map(x -> x.getName().replaceAll("\\.", "/") + ".class")
+            .map(x -> x.getName().replace('.', '/') + ".class")
             .toArray(String[]::new);
     }
 }

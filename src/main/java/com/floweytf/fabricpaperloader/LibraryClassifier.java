@@ -19,6 +19,10 @@ public class LibraryClassifier {
 
     public void addPaths(Path... paths) {
         for (Path path : paths) {
+            if (path == null) {
+                continue;
+            }
+
             final var type = classifySingle(path);
             if (type == null) {
                 continue;

@@ -1,6 +1,5 @@
 package com.floweytf.fabricpaperloader.paperclip;
 
-import java.util.Arrays;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -19,7 +18,7 @@ public record VersionInfo(
     @Nullable Path serverJarPath
 ) {
     public String rawVersion() {
-        return version + "+" + hash;
+        return hash == null ? version : version + "+" + hash;
     }
 
     public String normalizedVersion() {
